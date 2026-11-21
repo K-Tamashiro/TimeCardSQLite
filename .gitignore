@@ -5,6 +5,8 @@ __pycache__/
 *.db-shm
 dist/
 build/out/
+build/PersonalTimeCard/
+Release/
 *.spec
 .venv/
 venv/

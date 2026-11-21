@@ -351,6 +351,8 @@ def render_report(
             + "</td></tr>"
         )
 
+    show_half_subtotals = bool(contract and contract.get("show_half_subtotals"))
+
     for d in range(1, days + 1):
         x = period_start + datetime.timedelta(days=d - 1)
         ds = x.isoformat()
@@ -487,19 +489,23 @@ def render_report(
             + esc(note or label)
             + "</td></tr>"
         )
-        if d == 15:
+        if show_half_subtotals and d == 15:
             b += subtotal("前半小計（前半15日）", 0).replace(
                 'class="summary', 'class="screen-subtotal summary', 1
             )
-    b += subtotal("後半小計（16日～最終日）", 1).replace(
-        'class="summary', 'class="screen-subtotal summary', 1
-    )
+    if show_half_subtotals:
+        b += subtotal("後半小計（16日～最終日）", 1).replace(
+            'class="summary', 'class="screen-subtotal summary', 1
+        )
     b += subtotal("月間合計", 2)
-    print_footer = (
-        subtotal("前半小計（前半15日）", 0)
-        + subtotal("後半小計（16日～最終日）", 1)
-        + subtotal("月間合計", 2)
-    )
+    if show_half_subtotals:
+        print_footer = (
+            subtotal("前半小計（前半15日）", 0)
+            + subtotal("後半小計（16日～最終日）", 1)
+            + subtotal("月間合計", 2)
+        )
+    else:
+        print_footer = subtotal("月間合計", 2)
 
     lower_raw = (
         contract["lower"]

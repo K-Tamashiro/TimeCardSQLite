@@ -666,6 +666,13 @@ def handle_settings(sess, p, method, q):
             '<div class="workday-pills">'
             + workday_pills_html
             + "</div></div>"
+            '<div class="workdays-box">'
+            '<div class="field-title">実績表の表示オプション</div>'
+            '<div class="workday-pills">'
+            '<label class="workday-pill">'
+            '<input type="checkbox" name="contract_show_half_subtotals" id="contract-show-half-subtotals" value="1">'
+            "<span>15日・末の途中集計（前半・後半小計行）を表示する（画面・印刷）</span></label>"
+            "</div></div>"
             '<div class="form-actions">'
             '<button type="submit" id="contract-submit-btn" class="btn-with-icon">'
             '<img src="images/save.png" alt="" aria-hidden="true"><span>契約を登録</span></button>'
@@ -734,6 +741,7 @@ def handle_settings(sess, p, method, q):
                     + esc(tax_disp)
                     + '<div class="small muted">支払 '
                     + esc(_format_payment_terms(c))
+                    + (" / 15日小計" if c.get("show_half_subtotals") else "")
                     + "</div></td><td>"
                     + esc(_format_workdays(c))
                     + '<div class="small muted">'

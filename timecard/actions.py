@@ -455,6 +455,15 @@ def handle_contract_save(sess, p):
         else:
             pay_holiday_rule = DEFAULT_PAY_HOLIDAY_RULE
 
+        if "contract_show_half_subtotals" in p:
+            show_half_subtotals = p.get("contract_show_half_subtotals") == "1"
+        elif schedule_submitted or p.get("workdays_submitted") == "1":
+            show_half_subtotals = False
+        elif existing_record:
+            show_half_subtotals = bool(existing_record.get("show_half_subtotals", False))
+        else:
+            show_half_subtotals = False
+
         cid = existing_record["id"] if existing_record else new_contract_id()
         record = dict(
             id=cid,
@@ -487,6 +496,7 @@ def handle_contract_save(sess, p):
             pay_month_offset=pay_month_offset,
             pay_day=pay_day,
             pay_holiday_rule=pay_holiday_rule,
+            show_half_subtotals=show_half_subtotals,
             is_sample=False,
         )
         if target_index is not None:

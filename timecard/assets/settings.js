@@ -164,6 +164,8 @@
         }
         const holCb = contractForm.elements.workday_holiday;
         if (holCb) holCb.checked = false;
+        const hsubCb = contractForm.elements.contract_show_half_subtotals;
+        if (hsubCb) hsubCb.checked = false;
         manualDeduct = false;
         manualExtra = false;
         if (contractModeBadge) {
@@ -218,6 +220,8 @@
         }
         const holCb = contractForm.elements.workday_holiday;
         if (holCb) holCb.checked = Boolean(c.work_on_holiday);
+        const hsubCb = contractForm.elements.contract_show_half_subtotals;
+        if (hsubCb) hsubCb.checked = Boolean(c.show_half_subtotals);
         manualDeduct = true;
         manualExtra = true;
         if (contractModeBadge) {

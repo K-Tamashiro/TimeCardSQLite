@@ -2,6 +2,7 @@
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import mimetypes
+import os
 import urllib.parse
 from timecard.application import handle_request
 from timecard.db import resource_root
@@ -90,5 +91,10 @@ class TimeCardRequestHandler(BaseHTTPRequestHandler):
         self._dispatch("POST")
 
 
+class TimeCardHTTPServer(ThreadingHTTPServer):
+    # On Windows, SO_REUSEADDR permits binding a port already in use; disable it there.
+    allow_reuse_address = os.name != "nt"
+
+
 def create_server(host="127.0.0.1", port=0):
-    return ThreadingHTTPServer((host, port), TimeCardRequestHandler)
+    return TimeCardHTTPServer((host, port), TimeCardRequestHandler)

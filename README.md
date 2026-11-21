@@ -40,19 +40,19 @@ py -m unittest discover -s tests -v
 
 ## Windows 実行ファイル & インストーラーのビルド手順
 
-1. PyInstaller をインストールして実行ファイルを生成：
+1. PyInstaller をインストールして実行ファイルとポータブル ZIP を生成：
    ```powershell
    py -m pip install pyinstaller
    py build\build_exe.py
    ```
-   `dist\PersonalTimeCard\PersonalTimeCard.exe` が生成されます。
-2. [Inno Setup 6](https://jrsoftware.org/isinfo.php) で `build\installer.iss` をコンパイルすると、`build\out\PersonalTimeCard-Setup-1.0.0.exe` が作成されます。
+   `dist\PersonalTimeCard\PersonalTimeCard.exe`（`README.txt`・`LICENSE.txt` 同梱）と、そのまま配布できるポータブル ZIP `Release\PersonalTimeCard-1.0.0-win64.zip` が生成されます。
+2. [Inno Setup 6](https://jrsoftware.org/isinfo.php) で `build\installer.iss` をコンパイルすると、`Release\PersonalTimeCard-Setup-1.0.0.exe` が作成されます。
 
 ## 法人・チーム向けサーバー版について
 
 本リポジトリは、フリーランス・個人事業主向けの**無料スタンドアロン版（SQLite3）**です。
 
-複数名でのチーム利用・法人向けの**サーバー版**（個別環境構築・サブスクリプション制：**1人あたり 300円 / 月**）も別途ご用意しています。導入をご検討の際は、お問い合わせ窓口（note のクリエイターへのお問い合わせ等）よりお気軽にご連絡ください。
+複数名でのチーム利用・法人向けの**サーバー版**（個別環境構築・サブスクリプション制：**1人あたり 300円 / 月**）も別途ご用意しています。導入をご検討の際は、note（[https://note.com/thinker_tamayan](https://note.com/thinker_tamayan)）よりお気軽にご連絡ください。
 
 ## ライセンス
 

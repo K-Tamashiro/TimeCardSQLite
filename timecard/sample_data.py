@@ -85,6 +85,7 @@ def seed_sample_data(sysadmin_uid, today=None):
         "pay_month_offset": DEFAULT_PAY_MONTH_OFFSET,
         "pay_day": DEFAULT_PAY_DAY,
         "pay_holiday_rule": DEFAULT_PAY_HOLIDAY_RULE,
+        "show_half_subtotals": False,
         "is_sample": True,
     }
     save_contracts([sample_contract])

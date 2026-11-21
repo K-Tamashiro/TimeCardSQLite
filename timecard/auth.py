@@ -145,6 +145,12 @@ def revoke_session(cookie_header):
         con.commit()
 
 
+def revoke_all_sessions():
+    """Invalidate all active sessions (used on standalone launcher startup/shutdown)."""
+    con.execute("DELETE FROM sessions")
+    con.commit()
+
+
 def _extract_token(cookie_header):
     c = http.cookies.SimpleCookie()
     try:

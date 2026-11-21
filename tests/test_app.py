@@ -353,6 +353,124 @@ class StandaloneTimeCardTests(unittest.TestCase):
         # 2026-11 closing -> next month end 2026-12-31 (bank holiday) -> prev business day 2026-12-30 (Wed)
         self.assertIn('<div class="invoice-due">2026年12月30日（水）</div>', html)
 
+    def test_half_subtotals_default_off_and_opt_in_on_screen_and_print(self):
+        sa_cookie = self._setup_sysadmin()
+        # Default (sample contract): half-month subtotals are OFF in both screen table and print footer
+        html_off = self._req("GET", "", cookie=sa_cookie).body.decode("utf-8")
+        self.assertNotIn("前半小計（前半15日）", html_off)
+        self.assertNotIn("後半小計（16日～最終日）", html_off)
+        self.assertIn("月間合計", html_off)
+
+        # Enable show_half_subtotals on a contract
+        c = contracts.contracts()[0]
+        self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_id": c["id"],
+                "contract_name": c["name"],
+                "contract_display_title": c["display_title"],
+                "contract_customer": c["customer"],
+                "contract_start_date": c["start_date"],
+                "contract_end_date": c["end_date"],
+                "contract_closing": c["closing"],
+                "contract_tax": c["tax"],
+                "contract_fee": c["fee"],
+                "contract_lower": c["lower"],
+                "contract_upper": c["upper"],
+                "workdays_submitted": "1",
+                "schedule_submitted": "1",
+                "workday_0": "1",
+                "workday_1": "1",
+                "workday_2": "1",
+                "workday_3": "1",
+                "workday_4": "1",
+                "contract_show_half_subtotals": "1",
+            },
+            cookie=sa_cookie,
+        )
+        html_on = self._req("GET", "", cookie=sa_cookie).body.decode("utf-8")
+        # Appears twice: once in screen table and once in print_footer
+        self.assertEqual(2, html_on.count("前半小計（前半15日）"))
+        self.assertEqual(2, html_on.count("後半小計（16日～最終日）"))
+
+        # Turn back off
+        self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_id": c["id"],
+                "contract_name": c["name"],
+                "contract_display_title": c["display_title"],
+                "contract_customer": c["customer"],
+                "contract_start_date": c["start_date"],
+                "contract_end_date": c["end_date"],
+                "contract_closing": c["closing"],
+                "contract_tax": c["tax"],
+                "contract_fee": c["fee"],
+                "contract_lower": c["lower"],
+                "contract_upper": c["upper"],
+                "workdays_submitted": "1",
+                "schedule_submitted": "1",
+                "workday_0": "1",
+                "workday_1": "1",
+                "workday_2": "1",
+                "workday_3": "1",
+                "workday_4": "1",
+            },
+            cookie=sa_cookie,
+        )
+        html_off_again = self._req("GET", "", cookie=sa_cookie).body.decode("utf-8")
+        self.assertNotIn("前半小計（前半15日）", html_off_again)
+        self.assertNotIn("後半小計（16日～最終日）", html_off_again)
+
+    def test_status_endpoint_and_revoke_all_sessions(self):
+        from timecard.auth import revoke_all_sessions
+
+        application.reset_shutting_down()
+        cookie = self._setup_sysadmin()
+
+        r1 = self._req("GET", "a=status", cookie=cookie)
+        self.assertEqual(200, r1.status)
+        self.assertEqual({"running": True, "logged_in": True}, json.loads(r1.body.decode("utf-8")))
+
+        # Revoking all sessions (as performed on dialog close/startup) logs out active sessions
+        revoke_all_sessions()
+        r2 = self._req("GET", "a=status", cookie=cookie)
+        self.assertEqual({"running": True, "logged_in": False}, json.loads(r2.body.decode("utf-8")))
+
+        r_home = self._req("GET", "", cookie=cookie)
+        self.assertIn("ログイン", r_home.body.decode("utf-8"))
+
+        # Shutting down flag is reflected in status endpoint
+        application.mark_shutting_down()
+        try:
+            r3 = self._req("GET", "a=status", cookie=cookie)
+            self.assertEqual({"running": False, "logged_in": False}, json.loads(r3.body.decode("utf-8")))
+        finally:
+            application.reset_shutting_down()
+
+    def test_fixed_default_port_and_fallback_when_busy(self):
+        import run_app
+
+        blocker = create_server("127.0.0.1", 0)
+        busy_port = blocker.server_address[1]
+        try:
+            srv = run_app._bind_server("127.0.0.1", busy_port, allow_fallback=True)
+            try:
+                self.assertNotEqual(busy_port, srv.server_address[1])
+                self.assertGreater(srv.server_address[1], 0)
+            finally:
+                srv.server_close()
+        finally:
+            blocker.server_close()
+
+        srv2 = run_app._bind_server("127.0.0.1", busy_port, allow_fallback=True)
+        try:
+            self.assertEqual(busy_port, srv2.server_address[1])
+        finally:
+            srv2.server_close()
+
     def test_builtin_http_server_and_file_sqlite_persistence(self):
         with tempfile.TemporaryDirectory() as tmp:
             db.configure(Path(tmp) / "timecard.db")

@@ -47,6 +47,7 @@ CONTRACT_FIELD_MAP = (
     ("pay_month_offset", "pmo"),
     ("pay_day", "pday"),
     ("pay_holiday_rule", "phol"),
+    ("show_half_subtotals", "hsub"),
     ("is_sample", "sample"),
 )
 
@@ -230,6 +231,13 @@ def normalize_contract(raw, storage_key=None):
         raw_pay_hol if raw_pay_hol in ("next", "prev") else DEFAULT_PAY_HOLIDAY_RULE
     )
 
+    raw_hsub = c.get("show_half_subtotals", False)
+    show_half_subtotals = (
+        raw_hsub.strip() in ("1", "true", "True")
+        if isinstance(raw_hsub, str)
+        else bool(raw_hsub)
+    )
+
     raw_sample = c.get("is_sample", False)
     is_sample = (
         raw_sample.strip() in ("1", "true", "True")
@@ -268,6 +276,7 @@ def normalize_contract(raw, storage_key=None):
         "pay_month_offset": pay_month_offset,
         "pay_day": pay_day,
         "pay_holiday_rule": pay_holiday_rule,
+        "show_half_subtotals": show_half_subtotals,
         "is_sample": is_sample,
     }
 
@@ -323,7 +332,7 @@ def save_contracts(items):
             value = c[long_field]
             if long_field == "workdays":
                 encoded = ",".join(str(d) for d in value) if value else "-"
-            elif long_field in ("work_on_holiday", "is_sample"):
+            elif long_field in ("work_on_holiday", "show_half_subtotals", "is_sample"):
                 encoded = "1" if value else "0"
             else:
                 encoded = str(value)[:100]

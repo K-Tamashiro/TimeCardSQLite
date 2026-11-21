@@ -62,6 +62,36 @@ def layout(title, body, header_actions="", sess=None):
         '<span>' + esc(APP_COPYRIGHT) + "</span>"
         "</footer>"
     )
+    watcher_js = (
+        "<script>(function(){"
+        "var wasLoggedIn=" + ("true" if sess else "false") + ";"
+        "var stopped=false;"
+        "function showStopped(){"
+        "if(stopped)return;stopped=true;"
+        "if(timer)clearInterval(timer);"
+        "document.title='終了しました | " + esc(APP_NAME) + "';"
+        "document.body.innerHTML="
+        "'<div style=\"max-width:520px;margin:72px auto;padding:28px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(18,57,71,.12);text-align:center;font-family:system-ui,Meiryo,sans-serif;color:#182c36\">'"
+        "+'<h1 style=\"margin:0 0 12px;font-size:20px;color:#123947\">アプリを終了しました（ログアウト済み）</h1>'"
+        "+'<p style=\"margin:0 0 10px;line-height:1.7;font-size:14px;color:#3d5563\">ローカルサーバーが停止し、安全にログアウトされました。<br>このブラウザタブは閉じていただいて構いません。</p>'"
+        "+'<p style=\"margin:0;font-size:12px;color:#6c8290\">再度利用する場合は、アプリを起動し直してください。</p>'"
+        "+'</div>';"
+        "}"
+        "function check(){"
+        "if(stopped)return;"
+        "fetch('/?a=status',{cache:'no-store',credentials:'same-origin'})"
+        ".then(function(r){if(!r.ok)throw new Error('http');return r.json();})"
+        ".then(function(d){"
+        "if(!d||d.running===false){showStopped();return;}"
+        "if(wasLoggedIn&&d.logged_in===false){location.href='/';}"
+        "})"
+        ".catch(function(){showStopped();});"
+        "}"
+        "var timer=setInterval(check,2000);"
+        "window.addEventListener('focus',check);"
+        "document.addEventListener('visibilitychange',function(){if(!document.hidden)check();});"
+        "})();</script>"
+    )
     return (
         '<!doctype html><html lang="ja"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -74,5 +104,6 @@ def layout(title, body, header_actions="", sess=None):
         + body
         + "</main>"
         + footer_html
+        + watcher_js
         + "</body></html>"
     )

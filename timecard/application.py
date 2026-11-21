@@ -25,7 +25,7 @@ from timecard.auth import (
     revoke_session,
 )
 from timecard.contracts import active_contract, reporting_period
-from timecard.http_utils import esc, html_response, redirect
+from timecard.http_utils import esc, html_response, json_response, redirect
 from timecard.layout import layout
 from timecard.report import handle_search, render_report
 from timecard.sample_data import seed_sample_data
@@ -81,11 +81,11 @@ def _render_login_page(error_msg=""):
         '<div class="card auth-card">'
         "<h1>ログイン</h1>"
         + err_html
-        + '<form method="post" action="/?a=login" class="auth-form">'
+        + '<form method="post" action="/?a=login" class="auth-form" autocomplete="on">'
         '<label class="field"><span>ログインID</span>'
-        '<input type="text" name="login" required autocomplete="username"></label>'
+        '<input type="text" id="login-username" name="login" required autocomplete="username"></label>'
         '<label class="field"><span>パスワード</span>'
-        '<input type="password" name="password" required autocomplete="current-password"></label>'
+        '<input type="password" id="login-password" name="password" required autocomplete="current-password"></label>'
         '<label class="login-admin-check">'
         '<input type="checkbox" name="as_admin" value="1">'
         '<span>管理者としてログイン<small class="muted">（管理者昇格可能なユーザーのみ）</small></span>'
@@ -100,11 +100,31 @@ def _render_login_page(error_msg=""):
     return html_response(layout("ログイン", body))
 
 
+_SHUTTING_DOWN = False
+
+
+def mark_shutting_down():
+    global _SHUTTING_DOWN
+    _SHUTTING_DOWN = True
+
+
+def reset_shutting_down():
+    global _SHUTTING_DOWN
+    _SHUTTING_DOWN = False
+
+
 def handle_request(method, query_params, form_params, cookie_header=""):
     """Handle one HTTP request and return a Response object."""
     q = query_params or {}
     p = form_params or {}
     a = q.get("a", "")
+
+    # 0. Lightweight status probe for browser-side shutdown/logout detection
+    if a == "status":
+        sess_now = None if _SHUTTING_DOWN else current_session(cookie_header)
+        return json_response(
+            {"running": not _SHUTTING_DOWN, "logged_in": bool(sess_now)}
+        )
 
     # 1. Initial sysadmin setup
     if not has_any_sysadmin():

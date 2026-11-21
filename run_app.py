@@ -7,9 +7,22 @@ import subprocess
 import sys
 import threading
 import webbrowser
+from timecard.application import mark_shutting_down, reset_shutting_down
+from timecard.auth import revoke_all_sessions
 from timecard.db import close_all, configure, current_db_path
 from timecard.server import create_server
 from timecard.version import APP_COPYRIGHT, APP_NAME, APP_VERSION
+
+DEFAULT_PORT = 18573
+
+
+def _bind_server(host, preferred_port, allow_fallback=True):
+    try:
+        return create_server(host=host, port=preferred_port)
+    except OSError:
+        if allow_fallback and preferred_port != 0:
+            return create_server(host=host, port=0)
+        raise
 
 
 def _open_folder(folder_path):
@@ -24,6 +37,7 @@ def _open_folder(folder_path):
 
 def _run_gui(server, url, db_path):
     import tkinter as tk
+    from tkinter import messagebox
 
     root = tk.Tk()
     root.title(APP_NAME)
@@ -71,6 +85,16 @@ def _run_gui(server, url, db_path):
         bg="#111b22",
         wraplength=420,
         justify="left",
+    ).pack(anchor="w", pady=(0, 8))
+
+    tk.Label(
+        frame,
+        text="※ 使用中はこの画面を開いたままにしてください（閉じるとログアウトして終了します）",
+        font=("Meiryo UI", 8),
+        fg="#f5c97a",
+        bg="#111b22",
+        wraplength=420,
+        justify="left",
     ).pack(anchor="w", pady=(0, 14))
 
     btn_row = tk.Frame(frame, bg="#111b22")
@@ -108,11 +132,27 @@ def _run_gui(server, url, db_path):
 
     def shutdown():
         try:
+            mark_shutting_down()
+            try:
+                revoke_all_sessions()
+            except Exception:
+                pass
             server.shutdown()
             server.server_close()
         finally:
             close_all()
             root.destroy()
+
+    def confirm_and_shutdown():
+        ok = messagebox.askyesno(
+            APP_NAME,
+            "アプリを終了しますか？\n\n終了するとシステムからログアウトされ、ローカルサーバーが停止します。\n（開いているブラウザ画面からは操作できなくなります）",
+            icon="question",
+            parent=root,
+        )
+        if not ok:
+            return
+        shutdown()
 
     tk.Button(
         btn_row,
@@ -126,10 +166,10 @@ def _run_gui(server, url, db_path):
         padx=14,
         pady=7,
         cursor="hand2",
-        command=shutdown,
+        command=confirm_and_shutdown,
     ).pack(side="right")
 
-    root.protocol("WM_DELETE_WINDOW", shutdown)
+    root.protocol("WM_DELETE_WINDOW", confirm_and_shutdown)
     root.after(250, lambda: webbrowser.open(url))
     root.mainloop()
 
@@ -137,7 +177,12 @@ def _run_gui(server, url, db_path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=APP_NAME)
     parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=0, help="Port number (0 = auto)")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help=f"Port number (default: {DEFAULT_PORT}, falls back to auto if busy; 0 = auto)",
+    )
     parser.add_argument("--data-dir", default="", help="Custom directory for SQLite database")
     parser.add_argument("--headless", action="store_true", help="Run without GUI launcher window")
     parser.add_argument("--no-browser", action="store_true", help="Do not open web browser automatically")
@@ -148,8 +193,14 @@ def main(argv=None):
     else:
         configure(None)
 
+    reset_shutting_down()
+    revoke_all_sessions()
+
     db_path = current_db_path()
-    server = create_server(host=args.host, port=args.port)
+    if args.port is None:
+        server = _bind_server(args.host, DEFAULT_PORT, allow_fallback=True)
+    else:
+        server = _bind_server(args.host, args.port, allow_fallback=False)
     actual_port = server.server_address[1]
     url = f"http://{args.host}:{actual_port}/"
 
@@ -163,6 +214,11 @@ def main(argv=None):
         except KeyboardInterrupt:
             pass
         finally:
+            mark_shutting_down()
+            try:
+                revoke_all_sessions()
+            except Exception:
+                pass
             server.server_close()
             close_all()
         return
@@ -178,6 +234,11 @@ def main(argv=None):
         try:
             t.join()
         except KeyboardInterrupt:
+            mark_shutting_down()
+            try:
+                revoke_all_sessions()
+            except Exception:
+                pass
             server.shutdown()
             server.server_close()
             close_all()
