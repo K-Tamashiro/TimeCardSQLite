@@ -1,0 +1,3 @@
+# Standard library only at runtime (sqlite3, http.server, tkinter).
+# Optional build dependency for creating Windows executables:
+# pyinstaller>=6.0

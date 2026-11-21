@@ -1,0 +1,6 @@
+[project]
+name = "personal-timecard-freelance"
+version = "1.0.0"
+description = "Personal TimeCard for Free Lance - Standalone SQLite3 Attendance & Invoice App"
+requires-python = ">=3.9"
+dependencies = []
