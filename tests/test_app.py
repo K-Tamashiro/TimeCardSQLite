@@ -66,6 +66,7 @@ class StandaloneTimeCardTests(unittest.TestCase):
         r_report = self._req("GET", "", cookie=cookie)
         html = r_report.body.decode("utf-8")
         self.assertIn("サンプル事業所 実績表", html)
+        self.assertIn("@page{size:A4 portrait;margin:11mm 6mm 6mm}", html)
         self.assertIn("CSVインポート/エクスポート", html)
         self.assertIn("システム管理者", html)
         self.assertIn(APP_COPYRIGHT, html)
