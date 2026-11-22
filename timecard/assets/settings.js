@@ -335,6 +335,16 @@
     let calData = state.initial_calendar || null;
     let selectedDate = '';
     let activeEditorTab = canEditHolidays ? 'holiday' : 'event';
+    const pendingHolidayDays = new Set();
+
+    function syncHolidayChipHighlight() {
+        const cur = holidayNameInput ? holidayNameInput.value.trim() : '';
+        document.querySelectorAll('[data-holiday-preset]').forEach(function (chip) {
+            const active = Boolean(cur) && chip.dataset.holidayPreset === cur;
+            chip.classList.toggle('is-active', active);
+            chip.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+    }
 
     function setActiveEditorTab(tab) {
         if (!canEditHolidays) tab = 'event';
@@ -346,6 +356,11 @@
         });
         if (holidayForm) holidayForm.hidden = activeEditorTab !== 'holiday';
         if (eventForm) eventForm.hidden = activeEditorTab !== 'event';
+        if (!selectedDate && holidaySelectedMeta) {
+            holidaySelectedMeta.textContent = (canEditHolidays && activeEditorTab === 'holiday')
+                ? '先に休日名を選択・入力して日付をクリックすると即登録されます（再クリックで解除）'
+                : 'カレンダーの日付をクリックして選択してください';
+        }
     }
 
     function parseIso(iso) {
@@ -381,13 +396,16 @@
         if (eventDeleteBtn) eventDeleteBtn.disabled = !existing;
     }
 
-    function updateSelectedPanel(iso) {
+    function updateSelectedPanel(iso, syncHolidayName) {
         selectedDate = iso || '';
         if (holidayDayInput) holidayDayInput.value = selectedDate;
         if (eventDayInput) eventDayInput.value = selectedDate;
         if (!calData || !selectedDate) {
-            if (holidaySelectedMeta) holidaySelectedMeta.textContent = 'カレンダーの日付をクリックして選択してください';
-            if (holidayNameInput) holidayNameInput.value = '';
+            if (holidaySelectedMeta) {
+                holidaySelectedMeta.textContent = (canEditHolidays && activeEditorTab === 'holiday')
+                    ? '先に休日名を選択・入力して日付をクリックすると即登録されます（再クリックで解除）'
+                    : 'カレンダーの日付をクリックして選択してください';
+            }
             if (holidayDeleteBtn) holidayDeleteBtn.disabled = true;
             if (eventTextInput) eventTextInput.value = '';
             if (eventDeleteBtn) eventDeleteBtn.disabled = true;
@@ -405,7 +423,10 @@
         if (pubEv) parts.push('全体予定：' + pubEv);
         if (privEv) parts.push('個人予定：' + privEv);
         if (holidaySelectedMeta) holidaySelectedMeta.textContent = parts.join(' ／ ');
-        if (holidayNameInput) holidayNameInput.value = officeName;
+        if (syncHolidayName && holidayNameInput) {
+            holidayNameInput.value = officeName;
+            syncHolidayChipHighlight();
+        }
         if (holidayDeleteBtn) holidayDeleteBtn.disabled = !officeName;
         syncEventInputForSelected();
 
@@ -422,6 +443,34 @@
                 li.classList.toggle('is-selected', li.dataset.date === selectedDate);
             });
         });
+    }
+
+    async function handleCalendarDateClick(iso) {
+        if (!canEditHolidays || activeEditorTab === 'event') {
+            updateSelectedPanel(iso, false);
+            if (eventTextInput) eventTextInput.focus();
+            return;
+        }
+        updateSelectedPanel(iso, false);
+        if (pendingHolidayDays.has(iso)) return;
+        const existingOffice = ((calData && calData.office_holidays) || {})[iso] || '';
+        const activeName = holidayNameInput ? holidayNameInput.value.trim() : '';
+
+        if (existingOffice) {
+            await saveHoliday(iso, '', { existingLabel: existingOffice });
+            return;
+        }
+        if (activeName) {
+            await saveHoliday(iso, activeName);
+            return;
+        }
+        const officialName = ((calData && calData.official_holidays) || {})[iso] || '';
+        if (!officialName) {
+            setStatus('先に右パネルで休日名を選択（または入力）してから日付をクリックしてください。', false);
+        } else {
+            setStatus('', false);
+        }
+        if (holidayNameInput) holidayNameInput.focus();
     }
 
     function renderHolidayList() {
@@ -459,8 +508,7 @@
                 selectBtn.appendChild(lblSpan);
                 selectBtn.addEventListener('click', function () {
                     setActiveEditorTab('holiday');
-                    updateSelectedPanel(iso);
-                    if (holidayNameInput) holidayNameInput.focus();
+                    updateSelectedPanel(iso, true);
                 });
                 const delBtn = document.createElement('button');
                 delBtn.type = 'button';
@@ -690,12 +738,7 @@
                 if (iso === selectedDate) btn.classList.add('is-selected');
                 btn.title = tips.join('\n');
                 btn.addEventListener('click', function () {
-                    updateSelectedPanel(iso);
-                    if (activeEditorTab === 'event') {
-                        if (eventTextInput) eventTextInput.focus();
-                    } else if (holidayNameInput) {
-                        holidayNameInput.focus();
-                    }
+                    handleCalendarDateClick(iso);
                 });
                 grid.appendChild(btn);
             }
@@ -749,8 +792,9 @@
         return data;
     }
 
-    async function saveHoliday(dayStr, label) {
+    async function saveHoliday(dayStr, label, opts) {
         if (!calData || !dayStr) return;
+        pendingHolidayDays.add(dayStr);
         const syncSame = Boolean(calSyncSame && calSyncSame.checked && (calData.same_workplace_count || 0) > 1);
         setStatus('保存中…', false);
         try {
@@ -764,9 +808,17 @@
             calData = res.calendar;
             selectedDate = dayStr;
             renderAnnualCalendar();
-            setStatus(label ? dayStr + ' を「' + label + '」として登録しました。' : dayStr + ' の指定休日を解除しました。', false);
+            if (label) {
+                setStatus(dayStr + ' を「' + label + '」で登録しました。', false);
+            } else if (opts && opts.existingLabel) {
+                setStatus(dayStr + '（' + opts.existingLabel + '）を解除しました。', false);
+            } else {
+                setStatus(dayStr + ' の指定休日を解除しました。', false);
+            }
         } catch (err) {
             setStatus(err.message, true);
+        } finally {
+            pendingHolidayDays.delete(dayStr);
         }
     }
 
@@ -883,6 +935,11 @@
             const dayStr = holidayDayInput ? holidayDayInput.value.trim() : '';
             const label = holidayNameInput ? holidayNameInput.value.trim() : '';
             if (!dayStr) { setStatus('日付を選択してください。', true); return; }
+            if (!label) {
+                setStatus('休日名を入力してください（解除する場合は削除ボタンを押してください）。', true);
+                if (holidayNameInput) holidayNameInput.focus();
+                return;
+            }
             saveHoliday(dayStr, label);
         });
     }
@@ -909,15 +966,27 @@
     }
     document.querySelectorAll('[data-holiday-preset]').forEach(function (chip) {
         chip.addEventListener('click', function () {
-            if (holidayNameInput) {
-                holidayNameInput.value = chip.dataset.holidayPreset;
-                holidayNameInput.focus();
+            if (!holidayNameInput) return;
+            const preset = chip.dataset.holidayPreset || '';
+            const current = holidayNameInput.value.trim();
+            if (current === preset) {
+                holidayNameInput.value = '';
+                syncHolidayChipHighlight();
+                setStatus('休日名をクリアしました（登録モード解除）。', false);
+            } else {
+                holidayNameInput.value = preset;
+                syncHolidayChipHighlight();
+                setStatus('「' + preset + '」を選択中：カレンダーの日付をクリックすると即登録されます。', false);
             }
         });
     });
+    if (holidayNameInput) {
+        holidayNameInput.addEventListener('input', syncHolidayChipHighlight);
+    }
 
     if (calData) {
         setActiveEditorTab(activeEditorTab);
         renderAnnualCalendar();
+        syncHolidayChipHighlight();
     }
 }());

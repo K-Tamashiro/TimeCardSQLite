@@ -905,7 +905,15 @@ def handle_settings(sess, p, method, q):
     else:
         b += '<h3>個人予定の登録</h3>'
 
-    b += '<p id="holiday-selected-meta" class="holiday-selected-meta small">カレンダーの日付をクリックして選択してください</p>'
+    b += (
+        '<p id="holiday-selected-meta" class="holiday-selected-meta small">'
+        + (
+            "先に休日名を選択・入力して日付をクリックすると即登録されます（再クリックで解除）"
+            if edit_holidays
+            else "カレンダーの日付をクリックして選択してください"
+        )
+        + "</p>"
+    )
 
     if edit_holidays:
         b += (
@@ -915,8 +923,7 @@ def handle_settings(sess, p, method, q):
             + '"><input type="hidden" name="fy" value="'
             + str(initial_cal["fiscal_year"])
             + '">'
-            '<label class="field"><span>日付</span>'
-            '<input type="date" id="holiday-day-input" name="holiday_day" required></label>'
+            '<p class="holiday-mode-hint muted small">先に休日名を選択・入力してからカレンダーの日付をクリックすると即登録されます（日付の再クリックで解除／選択中テンプレート再クリックでクリア）</p>'
             '<label class="field"><span>休日名</span>'
             '<input type="text" id="holiday-name-input" name="holiday_name" maxlength="100" placeholder="例：GW、夏期休暇、年末年始"></label>'
             '<div class="holiday-presets">'
@@ -926,6 +933,8 @@ def handle_settings(sess, p, method, q):
             '<button type="button" class="preset-chip" data-holiday-preset="フリー">フリー</button>'
             '<button type="button" class="preset-chip" data-holiday-preset="創立記念日">創立記念日</button>'
             "</div>"
+            '<label class="field"><span>日付</span>'
+            '<input type="date" id="holiday-day-input" name="holiday_day" required></label>'
             '<div class="holiday-editor-actions">'
             '<button type="submit" class="btn-with-icon"><img src="images/save.png" alt="" aria-hidden="true"><span>休日を登録</span></button>'
             '<button type="button" id="holiday-delete-btn" class="danger-btn" disabled>削除</button>'
