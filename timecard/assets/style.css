@@ -112,7 +112,13 @@ button.day-clear.icon-btn img {width:24px;height:24px}
 .header-icon-link:active {transform:scale(.96)}
 .header-icon-btn img,.header-icon-link img {height:38px;width:auto;display:block}
 .app-footer {max-width:1100px;margin:8px auto 24px;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:#8fa6b5;border-top:1px solid #243744}
+.header-logo-wrap {display:inline-flex;align-items:flex-end;gap:6px;flex-shrink:0;white-space:nowrap}
+.header-title-logo {height:36px;width:auto;display:block}
+.header-version {font-size:11px;font-weight:600;opacity:.72;line-height:1.2;padding-bottom:2px}
 .auth-card {max-width:480px;margin:32px auto;padding:26px 28px}
+.auth-card-head {display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:6px}
+.auth-card-head h1 {margin:0;white-space:nowrap}
+.auth-title-logo {max-height:60px;height:auto;width:auto;max-width:65%;display:block;object-fit:contain}
 .auth-form {display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .auth-form label.field {display:flex;flex-direction:column;gap:5px;margin:0;font-weight:600;font-size:14px}
 .auth-form label.field em {color:#ff8a96;font-style:normal}
@@ -157,6 +163,7 @@ button.day-clear.icon-btn img {width:24px;height:24px}
   header.has-icon-nav {padding:8px 10px;gap:6px}
   header.has-icon-nav.has-header-actions {flex-direction:column;align-items:stretch}
   header.has-icon-nav.has-header-actions .header-brand {justify-content:space-between;font-size:14px}
+  .header-title-logo {height:28px}
   header.has-icon-nav.has-header-actions .header-controls {width:100%;justify-content:space-between;gap:4px;flex-wrap:nowrap}
   header.has-icon-nav.has-header-actions .header-actions {margin:0;gap:4px}
   header.has-icon-nav.has-header-actions .header-nav {gap:4px}

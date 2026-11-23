@@ -79,7 +79,10 @@ def _render_login_page(error_msg=""):
     err_html = '<p class="notice">' + esc(error_msg) + "</p>" if error_msg else ""
     body = (
         '<div class="card auth-card">'
+        '<div class="auth-card-head">'
         "<h1>ログイン</h1>"
+        '<img src="images/app_title.png" alt="' + esc(APP_NAME) + '" class="auth-title-logo">'
+        "</div>"
         + err_html
         + '<form method="post" action="/?a=login" class="auth-form" autocomplete="on">'
         '<label class="field"><span>ログインID</span>'

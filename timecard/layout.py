@@ -43,7 +43,8 @@ def layout(title, body, header_actions="", sess=None):
         header_html = (
             '<header class="' + header_cls + '">'
             '<div class="header-brand">'
-            '<b>' + esc(APP_SHORT_NAME) + ' <small style="font-size:11px;opacity:.7">v' + esc(APP_VERSION) + "</small></b>"
+            '<b class="header-logo-wrap"><img src="images/app_title.png" alt="' + esc(APP_NAME) + '" class="header-title-logo">'
+            '<small class="header-version">v' + esc(APP_VERSION) + "</small></b>"
             + user_badge
             + "</div>"
             '<div class="header-controls">' + header_actions + HEADER_ICON_NAV + "</div>"
@@ -52,7 +53,8 @@ def layout(title, body, header_actions="", sess=None):
     else:
         header_html = (
             "<header>"
-            '<b>' + esc(APP_NAME) + ' <small style="font-size:11px;opacity:.75">v' + esc(APP_VERSION) + "</small></b>"
+            '<b class="header-logo-wrap"><img src="images/app_title.png" alt="' + esc(APP_NAME) + '" class="header-title-logo">'
+            '<small class="header-version">v' + esc(APP_VERSION) + "</small></b>"
             "</header>"
         )
 

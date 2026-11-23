@@ -445,7 +445,12 @@ class StandaloneTimeCardTests(unittest.TestCase):
         self.assertEqual({"running": True, "logged_in": False}, json.loads(r2.body.decode("utf-8")))
 
         r_home = self._req("GET", "", cookie=cookie)
-        self.assertIn("ログイン", r_home.body.decode("utf-8"))
+        login_html = r_home.body.decode("utf-8")
+        self.assertIn("ログイン", login_html)
+        self.assertIn('images/app_title.png', login_html)
+        self.assertIn('class="header-title-logo"', login_html)
+        self.assertIn('class="auth-card-head"', login_html)
+        self.assertIn('class="auth-title-logo"', login_html)
 
         # Shutting down flag is reflected in status endpoint
         application.mark_shutting_down()
