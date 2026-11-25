@@ -501,6 +501,120 @@ class StandaloneTimeCardTests(unittest.TestCase):
                 srv.server_close()
                 db.close_all()
 
+    def test_entry_dialog_layout_and_two_line_clamp(self):
+        sa_cookie = self._setup_sysadmin()
+        html = self._req("GET", "", cookie=sa_cookie).body.decode("utf-8")
+        entry_html = html.split('<dialog id="entry-dialog"', 1)[1].split("</dialog>", 1)[0]
+        entry_top_html = entry_html.split('<div class="entry-dialog-top">', 1)[1].split(
+            '<div class="flex day-navigation">', 1
+        )[0]
+        self.assertIn('class="entry-regular-slot"', entry_top_html)
+        self.assertIn('images/fixed-time.png" alt="定時刻印"', entry_top_html)
+        self.assertLess(
+            entry_top_html.index('id="clock"'),
+            entry_top_html.index('id="entry-status-boxes"'),
+        )
+        self.assertLess(
+            entry_top_html.index('id="entry-status-boxes"'),
+            entry_top_html.index('id="regular-time"'),
+        )
+        self.assertLess(
+            entry_top_html.index('id="regular-time"'),
+            entry_top_html.index('id="entry-close"'),
+        )
+        self.assertIn('class="entry-field entry-field-break"', entry_html)
+        self.assertIn('class="col-report"><div class="cell-clamp">', html)
+        self.assertIn('class="col-note"><div class="cell-clamp">', html)
+        self.assertIn("-webkit-line-clamp:2", html)
+
+    def test_closing_day_badges_and_rollbacks(self):
+        import datetime
+        from timecard.holidays import national_holidays
+
+        # 1) Direct closing_workday rollback checks
+        c_end = contracts.normalize_contract(
+            {"name": "EndClose", "start_date": "2026-01-01", "closing": "末"}
+        )
+        p_start, p_end = contracts.reporting_period(2026, 10, "末")
+        self.assertEqual(
+            datetime.date(2026, 10, 30),
+            contracts.closing_workday(p_start, p_end, c_end, national_holidays(2026), {}),
+        )
+        p_start, p_end = contracts.reporting_period(2026, 5, "末")
+        self.assertEqual(
+            datetime.date(2026, 5, 29),
+            contracts.closing_workday(p_start, p_end, c_end, national_holidays(2026), {}),
+        )
+        c_15 = contracts.normalize_contract(
+            {"name": "Close15", "start_date": "2026-01-01", "closing": "15"}
+        )
+        p_start, p_end = contracts.reporting_period(2026, 11, "15")
+        self.assertEqual(
+            datetime.date(2026, 11, 13),
+            contracts.closing_workday(p_start, p_end, c_15, national_holidays(2026), {}),
+        )
+        c_20 = contracts.normalize_contract(
+            {"name": "Close20", "start_date": "2026-01-01", "closing": "20"}
+        )
+        p_start, p_end = contracts.reporting_period(2026, 7, "20")
+        self.assertEqual(
+            datetime.date(2026, 7, 17),
+            contracts.closing_workday(p_start, p_end, c_20, national_holidays(2026), {}),
+        )
+        p_start, p_end = contracts.reporting_period(2026, 11, "末")
+        self.assertEqual(
+            datetime.date(2026, 11, 27),
+            contracts.closing_workday(
+                p_start, p_end, c_end, national_holidays(2026), {"2026-11-30": "振替休日"}
+            ),
+        )
+
+        # 2) Full HTML render check: 15th close with event on same rolled-back closing day (2026-11-13)
+        sa_cookie = self._setup_sysadmin()
+        self._req("POST", "a=sample_reset", {}, cookie=sa_cookie)
+        contracts.save_contracts(
+            [
+                {
+                    "name": "Close15",
+                    "start_date": "2026-01-01",
+                    "lower": "120",
+                    "upper": "160",
+                    "closing": "15",
+                }
+            ]
+        )
+        self._req(
+            "POST",
+            "a=event_save",
+            {"event_day": "2026-11-13", "event_text": "月次報告会", "event_scope": "private"},
+            cookie=sa_cookie,
+        )
+
+        html = self._req("GET", "day=2026-11-13", cookie=sa_cookie).body.decode("utf-8")
+        row_13 = html.split('data-day="2026-11-13"', 1)[1].split("</tr>", 1)[0]
+        row_15 = html.split('data-day="2026-11-15"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn('class="day-badges"', row_13)
+        self.assertIn('class="event-dot"', row_13)
+        self.assertIn('class="closing-dot"', row_13)
+        self.assertLess(
+            row_13.index('class="event-dot"'), row_13.index('class="closing-dot"')
+        )
+        self.assertNotIn('class="closing-dot"', row_15)
+        self.assertIn('<div id="entry-status-boxes" class="entry-status-boxes">', html)
+        self.assertIn(
+            '<div id="entry-closing-box" class="entry-closing-box" title="契約締日（最終稼働日）"><span class="entry-closing-badge">締日</span></div>',
+            html,
+        )
+        html_12 = self._req("GET", "day=2026-11-12", cookie=sa_cookie).body.decode("utf-8")
+        self.assertIn(
+            '<div id="entry-closing-box" class="entry-closing-box" hidden',
+            html_12,
+        )
+        self.assertIn(
+            ".closing-dot,.day-badges,#entry-closing-box,#entry-status-boxes {display:none!important}",
+            html,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

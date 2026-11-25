@@ -17,8 +17,10 @@
     const entryCard = document.getElementById('entry-card');
     const entryDayLabel = document.getElementById('entry-day-label');
     const entryHolidayLabel = document.getElementById('entry-holiday-label');
+    const entryStatusBoxes = document.getElementById('entry-status-boxes');
     const entryEventBox = document.getElementById('entry-event-box');
     const entryEventText = document.getElementById('entry-event-text');
+    const entryClosingBox = document.getElementById('entry-closing-box');
     const entrySummary = document.getElementById('entry-summary');
     const entryPrev = document.getElementById('entry-prev');
     const entryNext = document.getElementById('entry-next');
@@ -85,14 +87,22 @@
             entryHolidayLabel.textContent = '';
             entryHolidayLabel.hidden = true;
         }
+        const hasEvent = Boolean(data.event);
+        const isClosing = Boolean(data.is_closing);
         if (entryEventBox && entryEventText) {
-            if (data.event) {
+            if (hasEvent) {
                 entryEventText.textContent = data.event;
                 entryEventBox.hidden = false;
             } else {
                 entryEventText.textContent = '';
                 entryEventBox.hidden = true;
             }
+        }
+        if (entryClosingBox) {
+            entryClosingBox.hidden = !isClosing;
+        }
+        if (entryStatusBoxes) {
+            entryStatusBoxes.hidden = !(hasEvent || isClosing);
         }
         form.elements.day.value = data.day;
         start.value = data.clock_in || '';

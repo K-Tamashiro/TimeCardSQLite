@@ -2,7 +2,8 @@
 
 フリーランス・個人事業主向けのスタンドアロン勤怠管理・請求書発行アプリです（Python 標準ライブラリ + SQLite3 のみで動作）。
 
-© シマウマソフト Tamayan
+- 最新バージョン：**v1.1.0**（変更履歴は [RELEASE_NOTES.md](RELEASE_NOTES.md) をご覧ください）
+- © シマウマソフト Tamayan
 
 ## 主な特徴
 
@@ -12,13 +13,27 @@
   - **管理者**: 管理者昇格可能なユーザーがログイン時に「管理者としてログイン」をチェックして利用。休日設定・個人予定設定が可能（CSV・契約・基本設定・リセットは不可）
   - **ユーザ**: 勤務入力・実績表・請求書発行・個人予定設定が可能
 - **契約ごとの柔軟な設定**:
-  - 単価・上下限時間・控除/超過単価・消費税率・稼働日・年度休日カレンダー
+  - 単価・上下限時間・控除/超過単価・消費税率・稼働日・年度休日カレンダー（クリック即登録・連続登録対応）
+  - 契約締日（期間内の最終稼働日・土日祝/事業所休日時は自動前倒し）の勤務表バッジ＆入力ポップアップ表示
   - 定時時刻（入場/退場）・休憩①（昼休憩）・休憩②（時間外前休憩）・時刻の刻み単位（1～30分）
   - 支払期限設定（翌月/翌々月/3ヶ月後、末日/1～31日、銀行休業日の前営業日/翌営業日）と請求書への曜日付き表示
   - 早出チェックボックスによる定時前勤務カウントと早出時間の別枠確認表示
+  - 15日・末の途中集計（前半・後半小計行）の契約ごとの表示切替
+- **見やすい一覧と印刷対応**:
+  - 一覧画面では作業内容・備考を最大2行に収めて行高の崩れを防止（印刷時は全文表示）
+  - A4縦1ページ収まりの勤務実績表・請求書印刷（PDF出力）対応
 - **初回サンプルデータ & 安全なリセット**:
   - 初回にシステム管理者を作成すると架空のサンプルデータで即体験できます。
   - システム管理者専用メニューのリセットボタンでサンプルデータのみを削除可能（ユーザー・権限・手動入力データは保持）。
+
+## ダウンロード（Windows 配布版）
+
+GitHub Releases から以下いずれかのパッケージをダウンロードしてご利用いただけます（Python の事前インストールは不要です）。
+
+- **インストーラー版**: `PersonalTimeCard-Setup-1.1.0.exe`（管理者権限不要・スタートメニュー/デスクトップショートカット作成対応）
+- **ポータブル ZIP 版**: `PersonalTimeCard-1.1.0-win64.zip`（展開して `PersonalTimeCard.exe` を実行）
+
+各バージョンの詳細な変更点は [RELEASE_NOTES.md](RELEASE_NOTES.md) を参照してください。
 
 ## 起動方法（開発環境）
 
@@ -45,8 +60,8 @@ py -m unittest discover -s tests -v
    py -m pip install pyinstaller
    py build\build_exe.py
    ```
-   `dist\PersonalTimeCard\PersonalTimeCard.exe`（`README.txt`・`LICENSE.txt` 同梱）と、そのまま配布できるポータブル ZIP `Release\PersonalTimeCard-1.0.0-win64.zip` が生成されます。
-2. [Inno Setup 6](https://jrsoftware.org/isinfo.php) で `build\installer.iss` をコンパイルすると、`Release\PersonalTimeCard-Setup-1.0.0.exe` が作成されます。
+   `dist\PersonalTimeCard\PersonalTimeCard.exe`（`README.txt`・`LICENSE.txt` 同梱）と、そのまま配布できるポータブル ZIP `Release\PersonalTimeCard-1.1.0-win64.zip` が生成されます。
+2. [Inno Setup 6](https://jrsoftware.org/isinfo.php) で `build\installer.iss` をコンパイルすると、`Release\PersonalTimeCard-Setup-1.1.0.exe` が作成されます。
 
 ## 法人・チーム向けサーバー版について
 

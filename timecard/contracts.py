@@ -575,6 +575,34 @@ def contract_is_workday(contract, day_obj, official_holidays, office_holidays):
     return day_obj.weekday() in workdays
 
 
+def closing_workday(
+    period_start,
+    period_end,
+    contract,
+    official_holidays,
+    office_holidays,
+    work_start=None,
+    work_end=None,
+    extra_holiday_days=None,
+):
+    """Return the last scheduled workday (date) within [period_start, period_end], rolling back non-workdays."""
+    if not period_start or not period_end or period_end < period_start:
+        return None
+    extra = extra_holiday_days or ()
+    upper = min(period_end, work_end) if work_end is not None else period_end
+    lower = max(period_start, work_start) if work_start is not None else period_start
+    if upper < lower:
+        return None
+    cur = upper
+    while cur >= lower:
+        if cur.isoformat() not in extra and contract_is_workday(
+            contract, cur, official_holidays, office_holidays
+        ):
+            return cur
+        cur -= datetime.timedelta(days=1)
+    return None
+
+
 # ---------------------------------------------------------
 # Events (public: sysadmin only, visible to all; private: per-user)
 # ---------------------------------------------------------

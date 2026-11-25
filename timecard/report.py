@@ -6,6 +6,7 @@ from timecard.attendance import calc_detail, dayok
 from timecard.auth import can_use_csv
 from timecard.contracts import (
     DEFAULT_WORKDAYS,
+    closing_workday,
     contract_display_title,
     contract_work_rules,
     get_contract_holidays,
@@ -139,6 +140,37 @@ def render_report(
         else b1_min
     )
     selected_break = val(uid, "break:" + day, "")
+    days = (period_end - period_start).days + 1
+    work_start = None
+    work_end = None
+    if contract:
+        c_start_str = contract.get("start_date") or contract.get("work_start") or ""
+        if c_start_str and dayok(c_start_str):
+            work_start = datetime.date.fromisoformat(c_start_str)
+        c_end_str = contract.get("end_date") or ""
+        if c_end_str and dayok(c_end_str):
+            work_end = datetime.date.fromisoformat(c_end_str)
+    period_rows = []
+    extra_holiday_days = set()
+    for d in range(1, days + 1):
+        x = period_start + datetime.timedelta(days=d - 1)
+        ds = x.isoformat()
+        rr = getwork(uid, ds)
+        if "【祝】" in (rr["note"] or ""):
+            extra_holiday_days.add(ds)
+        period_rows.append((d, x, ds, rr))
+    closing_date = closing_workday(
+        period_start,
+        period_end,
+        contract,
+        official,
+        office_holidays,
+        work_start=work_start,
+        work_end=work_end,
+        extra_holiday_days=extra_holiday_days,
+    )
+    closing_day_iso = closing_date.isoformat() if closing_date else ""
+    selected_is_closing = bool(closing_day_iso and day == closing_day_iso)
     days_data = {
         day: {
             "day": day,
@@ -148,6 +180,7 @@ def render_report(
             "cls": selected_class,
             "holiday_label": selected_label,
             "event": selected_event,
+            "is_closing": selected_is_closing,
             "clock_in": r["clock_in"].replace(":", ""),
             "clock_out": r["clock_out"].replace(":", ""),
             "early_work": bool(detail["early_work"]),
@@ -174,11 +207,30 @@ def render_report(
         + '" id="entry-card"><div class="entry-dialog-top"><div class="clock-with-icon">'
         '<img src="images/TimeCard.png" alt="" aria-hidden="true" class="clock-icon">'
         '<div class="clock" id="clock">--:--:--</div></div>'
+        '<div id="entry-status-boxes" class="entry-status-boxes"'
+        + ("" if (selected_event or selected_is_closing) else " hidden")
+        + ">"
         '<div id="entry-event-box" class="entry-event-box"'
         + ("" if selected_event else " hidden")
         + '><span class="entry-event-badge">イベント</span><span id="entry-event-text" class="entry-event-text">'
         + esc(selected_event)
         + "</span></div>"
+        '<div id="entry-closing-box" class="entry-closing-box"'
+        + ("" if selected_is_closing else " hidden")
+        + ' title="契約締日（最終稼働日）"><span class="entry-closing-badge">締日</span></div>'
+        "</div>"
+        '<div class="entry-regular-slot">'
+        '<button type="button" class="regular-btn icon-btn" id="regular-time" tabindex="-1"'
+        ' data-regular-start="'
+        + esc(reg_start_compact)
+        + '" data-regular-end="'
+        + esc(reg_end_compact)
+        + '" aria-label="定時刻印（'
+        + esc(reg_placeholder)
+        + '）" title="定時刻印（'
+        + esc(reg_placeholder)
+        + '）">'
+        '<img src="images/fixed-time.png" alt="定時刻印"></button></div>'
         '<button type="button" id="entry-close" class="entry-close icon-btn" aria-label="閉じる" title="閉じる">'
         '<img src="images/close.png" alt="閉じる"></button></div>'
         '<div class="flex day-navigation"><a href="/?day='
@@ -234,23 +286,13 @@ def render_report(
         + '" maxlength="5" autocomplete="off" tabindex="2" class="time-entry" name="clock_out" value="'
         + esc(r["clock_out"].replace(":", ""))
         + '"><button type="button" class="clear-time icon-btn" tabindex="-1" data-clear="clock_out" aria-label="退勤時刻をクリア" title="クリア"><img src="images/cleam.png" alt="クリア"></button></span></div>'
-        '<label>休憩時間（分）<input type="number" min="0" max="1440" step="1" id="entry-break" name="break_minutes" tabindex="3" placeholder="自動 '
+        '<div class="entry-field entry-field-break">'
+        '<div class="entry-field-head"><label for="entry-break">休憩(分)</label></div>'
+        '<input type="number" min="0" max="1440" step="1" id="entry-break" name="break_minutes" tabindex="3" placeholder="自動 '
         + suggested_break
         + '" value="'
         + esc(selected_break)
-        + '"></label>'
-        '<div class="entry-regular-slot">'
-        '<button type="button" class="regular-btn icon-btn" id="regular-time" tabindex="-1"'
-        ' data-regular-start="'
-        + esc(reg_start_compact)
-        + '" data-regular-end="'
-        + esc(reg_end_compact)
-        + '" aria-label="定時刻印（'
-        + esc(reg_placeholder)
-        + '）" title="定時刻印（'
-        + esc(reg_placeholder)
-        + '）">'
-        '<img src="images/fixed-time.png" alt="定時刻印"></button></div>'
+        + '"></div>'
         '</div><p class="muted small">'
         + esc(auto_break_note)
         + '</p><p class="muted small" id="entry-summary">'
@@ -267,16 +309,6 @@ def render_report(
     )
 
     b = ""
-    days = (period_end - period_start).days + 1
-    work_start = None
-    work_end = None
-    if contract:
-        c_start_str = contract.get("start_date") or contract.get("work_start") or ""
-        if c_start_str and dayok(c_start_str):
-            work_start = datetime.date.fromisoformat(c_start_str)
-        c_end_str = contract.get("end_date") or ""
-        if c_end_str and dayok(c_end_str):
-            work_end = datetime.date.fromisoformat(c_end_str)
     sender_name = (shared_val("company", "") or "").strip() or DEFAULT_SENDER_NAME
     sender_file_suffix = sender_name.replace(" ", "").replace("\u3000", "")
     display_title = contract_display_title(contract)
@@ -353,10 +385,7 @@ def render_report(
 
     show_half_subtotals = bool(contract and contract.get("show_half_subtotals"))
 
-    for d in range(1, days + 1):
-        x = period_start + datetime.timedelta(days=d - 1)
-        ds = x.isoformat()
-        rr = getwork(uid, ds)
+    for d, x, ds, rr in period_rows:
         detail = calc_detail(rr, uid, ds, contract=contract)
         office_label = office_holidays.get(ds, "")
         label = office_label or official.get(x, "")
@@ -402,6 +431,7 @@ def render_report(
         ev_info = visible_events.get(ds, {})
         day_event = ev_info.get("combined", "")
         has_public_ev = bool(ev_info.get("public"))
+        is_closing_day = bool(closing_day_iso and ds == closing_day_iso)
         days_data[ds] = {
             "day": ds,
             "weekday": "月火水木金土日"[x.weekday()],
@@ -410,6 +440,7 @@ def render_report(
             "cls": cls,
             "holiday_label": label,
             "event": day_event,
+            "is_closing": is_closing_day,
             "clock_in": rr["clock_in"].replace(":", ""),
             "clock_out": rr["clock_out"].replace(":", ""),
             "early_work": bool(detail["early_work"]),
@@ -435,15 +466,24 @@ def render_report(
             row_classes += " is-active"
         if ds == today_iso:
             row_classes += " today-row"
-        event_badge_html = (
-            '<span class="event-dot'
-            + (" is-public" if has_public_ev else "")
-            + '" title="イベント：'
-            + esc(day_event)
-            + '">'
-            + ("全体" if has_public_ev else "予定")
-            + "</span>"
-            if day_event
+        badges = []
+        if day_event:
+            badges.append(
+                '<span class="event-dot'
+                + (" is-public" if has_public_ev else "")
+                + '" title="イベント：'
+                + esc(day_event)
+                + '">'
+                + ("全体" if has_public_ev else "予定")
+                + "</span>"
+            )
+        if is_closing_day:
+            badges.append(
+                '<span class="closing-dot" title="契約締日（最終稼働日）">締日</span>'
+            )
+        day_badges_html = (
+            '<span class="day-badges">' + "".join(badges) + "</span>"
+            if badges
             else ""
         )
         b += (
@@ -462,7 +502,7 @@ def render_report(
             + "</span> ("
             + "月火水木金土日"[x.weekday()]
             + ")</a>"
-            + event_badge_html
+            + day_badges_html
             + '<form method="post" action="/?a=clear_day" style="margin:0" onsubmit="return confirm(&quot;'
             + ds
             + ' の勤務実績と日報をクリアします。備考は残します。よろしいですか？&quot;)"><input type="hidden" name="day" value="'
@@ -483,11 +523,11 @@ def render_report(
             + dual(detail["late_early"])
             + "</td><td>"
             + dual(detail["total"])
-            + "</td><td>"
+            + '</td><td class="col-report"><div class="cell-clamp">'
             + esc(rr["report"])
-            + "</td><td>"
+            + '</div></td><td class="col-note"><div class="cell-clamp">'
             + esc(note or label)
-            + "</td></tr>"
+            + "</div></td></tr>"
         )
         if show_half_subtotals and d == 15:
             b += subtotal("前半小計（前半15日）", 0).replace(
