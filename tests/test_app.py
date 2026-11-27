@@ -526,6 +526,14 @@ class StandaloneTimeCardTests(unittest.TestCase):
         self.assertIn('class="col-report"><div class="cell-clamp">', html)
         self.assertIn('class="col-note"><div class="cell-clamp">', html)
         self.assertIn("-webkit-line-clamp:2", html)
+        self.assertIn(".print-sheet .day-cell a {text-decoration:none}", html)
+        self.assertIn(".print-sheet>.scroll>table tbody tr.day-row .day-cell a {color:#f1f5f9!important}", html)
+        self.assertIn(".print-sheet>.scroll>table tbody tr.day-row.saturday .day-cell a {color:#a6d7ff!important}", html)
+        self.assertIn(".print-sheet>.scroll>table tbody tr.day-row.sunday .day-cell a,.print-sheet>.scroll>table tbody tr.day-row.holiday .day-cell a {color:#ffb7c0!important}", html)
+        self.assertIn(".print-sheet tr.day-row.saturday .day-cell a {color:#1759ad!important}", html)
+        self.assertIn(".print-sheet tr.day-row.sunday .day-cell a,.print-sheet tr.day-row.holiday .day-cell a {color:#b4232e!important}", html)
+        self.assertIn(".entry-fields #entry-break::placeholder {font-size:26px}", html)
+        self.assertIn(".entry-fields #entry-break::placeholder {font-size:clamp(17px,5.2vw,22px)}", html)
 
     def test_closing_day_badges_and_rollbacks(self):
         import datetime
@@ -600,12 +608,18 @@ class StandaloneTimeCardTests(unittest.TestCase):
             row_13.index('class="event-dot"'), row_13.index('class="closing-dot"')
         )
         self.assertNotIn('class="closing-dot"', row_15)
+        self.assertIn('<div class="card selected-day is-closing" id="entry-card">', html)
         self.assertIn('<div id="entry-status-boxes" class="entry-status-boxes">', html)
         self.assertIn(
             '<div id="entry-closing-box" class="entry-closing-box" title="契約締日（最終稼働日）"><span class="entry-closing-badge">締日</span></div>',
             html,
         )
+        self.assertIn(
+            "#entry-dialog .selected-day.is-closing {border:3px solid #ef4444;",
+            html,
+        )
         html_12 = self._req("GET", "day=2026-11-12", cookie=sa_cookie).body.decode("utf-8")
+        self.assertIn('<div class="card selected-day" id="entry-card">', html_12)
         self.assertIn(
             '<div id="entry-closing-box" class="entry-closing-box" hidden',
             html_12,
@@ -614,6 +628,233 @@ class StandaloneTimeCardTests(unittest.TestCase):
             ".closing-dot,.day-badges,#entry-closing-box,#entry-status-boxes {display:none!important}",
             html,
         )
+
+    def test_contract_subtotal_layout_split_and_bottom_screen_only(self):
+        sa_cookie = self._setup_sysadmin()
+        self._req("POST", "a=sample_reset", {}, cookie=sa_cookie)
+
+        # Validation rejects invalid subtotal_layout
+        res_bad = self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_name": "BadLayout",
+                "contract_start_date": "2026-01-01",
+                "contract_lower": "120",
+                "contract_upper": "160",
+                "contract_show_half_subtotals": "1",
+                "contract_subtotal_layout": "top",
+            },
+            cookie=sa_cookie,
+        )
+        self.assertEqual(400, res_bad.status)
+
+        # Contract 1 (June): half subtotals ON, split layout (inline under 15th)
+        res_split = self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_name": "SplitSub",
+                "contract_start_date": "2026-06-01",
+                "contract_end_date": "2026-06-30",
+                "contract_closing": "末",
+                "contract_lower": "120",
+                "contract_upper": "160",
+                "schedule_submitted": "1",
+                "contract_show_half_subtotals": "1",
+                "contract_subtotal_layout": "split",
+            },
+            cookie=sa_cookie,
+        )
+        self.assertEqual(303, res_split.status)
+
+        # Contract 2 (July): half subtotals ON, bottom 3-row set layout
+        res_bottom = self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_name": "BottomSub",
+                "contract_start_date": "2026-07-01",
+                "contract_end_date": "2026-07-31",
+                "contract_closing": "末",
+                "contract_lower": "120",
+                "contract_upper": "160",
+                "schedule_submitted": "1",
+                "contract_show_half_subtotals": "1",
+                "contract_subtotal_layout": "bottom",
+            },
+            cookie=sa_cookie,
+        )
+        self.assertEqual(303, res_bottom.status)
+
+        # Contract 3 (August): half subtotals OFF
+        res_off = self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_name": "NoSub",
+                "contract_start_date": "2026-08-01",
+                "contract_end_date": "2026-08-31",
+                "contract_closing": "末",
+                "contract_lower": "120",
+                "contract_upper": "160",
+                "schedule_submitted": "1",
+            },
+            cookie=sa_cookie,
+        )
+        self.assertEqual(303, res_off.status)
+
+        def _split_screen_and_print(html):
+            screen_part = html.split('<div class="scroll"><table>', 1)[1].split(
+                '</tbody></table></div><div class="print-footer">', 1
+            )[0]
+            print_part = html.split('<div class="print-footer">', 1)[1].split(
+                "</tbody></table></div>", 1
+            )[0]
+            return screen_part, print_part
+
+        # June (split): 前半小計 appears between 06-15 and 06-16; print footer has 3-row set
+        html_jun = self._req("GET", "day=2026-06-10", cookie=sa_cookie).body.decode("utf-8")
+        jun_screen, jun_print = _split_screen_and_print(html_jun)
+        self.assertLess(jun_screen.index('data-day="2026-06-15"'), jun_screen.index("前半小計（前半15日）"))
+        self.assertLess(jun_screen.index("前半小計（前半15日）"), jun_screen.index('data-day="2026-06-16"'))
+        self.assertLess(jun_screen.index('data-day="2026-06-30"'), jun_screen.index("後半小計（16日～最終日）"))
+        self.assertLess(jun_screen.index("後半小計（16日～最終日）"), jun_screen.index("月間合計"))
+        self.assertLess(jun_print.index("前半小計（前半15日）"), jun_print.index("後半小計（16日～最終日）"))
+        self.assertLess(jun_print.index("後半小計（16日～最終日）"), jun_print.index("月間合計"))
+
+        # July (bottom): 前半小計 is NOT between 07-15 and 07-16; all 3 summary rows appear at bottom
+        html_jul = self._req("GET", "day=2026-07-10", cookie=sa_cookie).body.decode("utf-8")
+        jul_screen, jul_print = _split_screen_and_print(html_jul)
+        between_15_16 = jul_screen.split('data-day="2026-07-15"', 1)[1].split('data-day="2026-07-16"', 1)[0]
+        self.assertNotIn("前半小計", between_15_16)
+        after_31 = jul_screen.split('data-day="2026-07-31"', 1)[1]
+        self.assertIn('class="screen-subtotal summary"><th colspan="4">前半小計（前半15日）</th>', after_31)
+        self.assertIn('class="screen-subtotal summary"><th colspan="4">後半小計（16日～最終日）</th>', after_31)
+        self.assertLess(after_31.index("前半小計（前半15日）"), after_31.index("後半小計（16日～最終日）"))
+        self.assertLess(after_31.index("後半小計（16日～最終日）"), after_31.index("月間合計"))
+        self.assertLess(jul_print.index("前半小計（前半15日）"), jul_print.index("後半小計（16日～最終日）"))
+        self.assertLess(jul_print.index("後半小計（16日～最終日）"), jul_print.index("月間合計"))
+        self.assertNotIn("screen-subtotal", jul_print)
+
+        # August (half subtotals OFF): neither screen nor print has half subtotals
+        html_aug = self._req("GET", "day=2026-08-10", cookie=sa_cookie).body.decode("utf-8")
+        aug_screen, aug_print = _split_screen_and_print(html_aug)
+        self.assertNotIn("前半小計", aug_screen)
+        self.assertNotIn("後半小計", aug_screen)
+        self.assertIn("月間合計", aug_screen)
+        self.assertNotIn("前半小計", aug_print)
+        self.assertNotIn("後半小計", aug_print)
+        self.assertIn("月間合計", aug_print)
+
+        # Settings screen displays radio controls and contract summary badges
+        html_settings = self._req("GET", "a=settings", cookie=sa_cookie).body.decode("utf-8")
+        self.assertIn('name="contract_subtotal_layout" value="split"', html_settings)
+        self.assertIn('name="contract_subtotal_layout" value="bottom"', html_settings)
+        self.assertIn("syncSubtotalLayoutState", html_settings)
+        self.assertIn(" / 15日小計</div>", html_settings)
+        self.assertIn(" / 15日小計(下部)</div>", html_settings)
+
+        # Editing July contract with half subtotals unchecked preserves saved subtotal_layout='bottom'
+        jul_c = next(c for c in contracts.contracts() if c["name"] == "BottomSub")
+        self.assertEqual("bottom", jul_c["subtotal_layout"])
+        res_edit_off = self._req(
+            "POST",
+            "a=contract_save",
+            {
+                "contract_id": jul_c["id"],
+                "contract_name": "BottomSub",
+                "contract_start_date": "2026-07-01",
+                "contract_end_date": "2026-07-31",
+                "contract_closing": "末",
+                "contract_lower": "120",
+                "contract_upper": "160",
+                "schedule_submitted": "1",
+            },
+            cookie=sa_cookie,
+        )
+        self.assertEqual(303, res_edit_off.status)
+        jul_c_after = contracts.contract_by_id(jul_c["id"])
+        self.assertFalse(jul_c_after["show_half_subtotals"])
+        self.assertEqual("bottom", jul_c_after["subtotal_layout"])
+
+    def test_absence_keywords_unified_handling(self):
+        import datetime
+        from timecard.holidays import national_holidays
+
+        # 1) Keyword detection & workday rule
+        for kw in ("【欠勤】", "【休み】", "【病欠】", "【私用】"):
+            self.assertTrue(contracts.is_absence_label(kw))
+            self.assertTrue(contracts.is_absence_label("午前" + kw))
+        self.assertFalse(contracts.is_absence_label("GW"))
+        self.assertFalse(contracts.is_absence_label("夏期休暇"))
+
+        c = contracts.normalize_contract(
+            {"name": "AbsTest", "start_date": "2026-09-01", "end_date": "2026-09-30"}
+        )
+        office = {
+            "2026-09-07": "【欠勤】",
+            "2026-09-08": "【休み】",
+            "2026-09-09": "【病欠】",
+            "2026-09-10": "【私用】",
+            "2026-09-11": "創立記念日",
+        }
+        official = national_holidays(2026)
+        for day_s in ("2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10"):
+            self.assertTrue(
+                contracts.contract_is_workday(c, datetime.date.fromisoformat(day_s), official, office)
+            )
+        self.assertFalse(
+            contracts.contract_is_workday(c, datetime.date(2026, 9, 11), official, office)
+        )
+
+        # 2) Full integration: report gray styling, bulk regular exclusion, and settings UI chips
+        sa_cookie = self._setup_sysadmin()
+        self._req("POST", "a=sample_reset", {}, cookie=sa_cookie)
+        contracts.save_contracts(
+            [
+                {
+                    "name": "AbsTest",
+                    "start_date": "2026-09-01",
+                    "end_date": "2026-09-30",
+                    "lower": "120",
+                    "upper": "160",
+                    "closing": "末",
+                }
+            ]
+        )
+        saved_c = contracts.contracts()[0]
+        contracts.save_contract_holidays(saved_c["id"], office)
+        # Also mark another day via note field
+        self._req(
+            "POST",
+            "a=save",
+            {"day": "2026-09-14", "note": "【私用】手続き"},
+            cookie=sa_cookie,
+        )
+
+        # Bulk regular must NOT punch the 4 absence days registered in office holidays or the note day
+        res_bulk = self._req("POST", "a=bulk_regular", {"month": "2026-09"}, cookie=sa_cookie)
+        self.assertEqual(303, res_bulk.status)
+
+        html = self._req("GET", "day=2026-09-07", cookie=sa_cookie).body.decode("utf-8")
+        for day_s in ("2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-14"):
+            row = html.split(f'data-day="{day_s}"', 1)[1].split("</tr>", 1)[0]
+            self.assertIn("absence", html.split(f'data-day="{day_s}"', 1)[0].rsplit("<tr ", 1)[1])
+            self.assertNotIn("08:30", row)
+        # Normal workday (2026-09-01) was punched by bulk regular
+        row_01 = html.split('data-day="2026-09-01"', 1)[1].split("</tr>", 1)[0]
+        self.assertIn("08:30", row_01)
+        # Office holiday (2026-09-11) is holiday class and not punched
+        self.assertIn("holiday", html.split('data-day="2026-09-11"', 1)[0].rsplit("<tr ", 1)[1])
+        # 5 absence days * 8.00h = 40.00h in monthly total
+        self.assertIn("不就業 ▲40.00h", html)
+
+        # Settings screen shows absence legend and 4 preset chips
+        html_settings = self._req("GET", "a=settings", cookie=sa_cookie).body.decode("utf-8")
+        self.assertIn('class="legend-swatch is-absence-holiday"', html_settings)
+        for kw in ("【欠勤】", "【休み】", "【病欠】", "【私用】"):
+            self.assertIn(f'data-holiday-preset="{kw}"', html_settings)
 
 
 if __name__ == "__main__":

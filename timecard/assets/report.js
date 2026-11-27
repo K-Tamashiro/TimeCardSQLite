@@ -74,7 +74,9 @@
     }
 
     function populateEntry(data) {
-        entryCard.className = 'card selected-day' + (data.cls ? ' ' + data.cls : '');
+        const hasEvent = Boolean(data.event);
+        const isClosing = Boolean(data.is_closing);
+        entryCard.className = 'card selected-day' + (data.cls ? ' ' + data.cls : '') + (isClosing ? ' is-closing' : '');
         entryDayLabel.textContent = data.day + '（' + data.weekday + '）';
         entryPrev.href = '/?day=' + encodeURIComponent(data.prev) + '&open=1';
         entryPrev.dataset.day = data.prev;
@@ -87,8 +89,6 @@
             entryHolidayLabel.textContent = '';
             entryHolidayLabel.hidden = true;
         }
-        const hasEvent = Boolean(data.event);
-        const isClosing = Boolean(data.is_closing);
         if (entryEventBox && entryEventText) {
             if (hasEvent) {
                 entryEventText.textContent = data.event;

@@ -11,6 +11,7 @@ from timecard.contracts import (
     contract_work_rules,
     get_contract_holidays,
     get_visible_events,
+    is_absence_label,
 )
 from timecard.db import con, resource_root
 from timecard.formatting import dual, fmt
@@ -99,11 +100,12 @@ def render_report(
     workdays = contract["workdays"] if contract else DEFAULT_WORKDAYS
     work_on_holiday = contract["work_on_holiday"] if contract else False
     selected_office_label = office_holidays.get(day, "")
+    selected_office_absence = is_absence_label(selected_office_label)
     selected_label = selected_office_label or official.get(selected, "")
     selected_note = r["note"] or ""
-    selected_absence = "【欠勤】" in selected_note
+    selected_absence = is_absence_label(selected_note) or selected_office_absence
     selected_is_holiday = (
-        bool(selected_office_label)
+        (bool(selected_office_label) and not selected_office_absence)
         or (selected in official and not work_on_holiday)
         or "【祝】" in selected_note
     )
@@ -194,6 +196,11 @@ def render_report(
             "note": r["note"],
         }
     }
+    entry_card_classes = "card selected-day"
+    if selected_class:
+        entry_card_classes += " " + selected_class
+    if selected_is_closing:
+        entry_card_classes += " is-closing"
     entry_html = (
         '<dialog id="entry-dialog" class="entry-dialog" data-auto-open="'
         + ("1" if auto_open else "0")
@@ -202,8 +209,8 @@ def render_report(
         + '" data-today="'
         + esc(today_iso)
         + '" aria-labelledby="entry-day-label">'
-        + '<div class="card selected-day '
-        + selected_class
+        + '<div class="'
+        + entry_card_classes
         + '" id="entry-card"><div class="entry-dialog-top"><div class="clock-with-icon">'
         '<img src="images/TimeCard.png" alt="" aria-hidden="true" class="clock-icon">'
         '<div class="clock" id="clock">--:--:--</div></div>'
@@ -384,15 +391,19 @@ def render_report(
         )
 
     show_half_subtotals = bool(contract and contract.get("show_half_subtotals"))
+    subtotal_layout = (
+        contract.get("subtotal_layout", "split") if contract else "split"
+    )
 
     for d, x, ds, rr in period_rows:
         detail = calc_detail(rr, uid, ds, contract=contract)
         office_label = office_holidays.get(ds, "")
+        office_absence = is_absence_label(office_label)
         label = office_label or official.get(x, "")
         note = rr["note"] or ""
-        absence = "【欠勤】" in note
+        absence = is_absence_label(note) or office_absence
         is_holiday = (
-            bool(office_label)
+            (bool(office_label) and not office_absence)
             or (x in official and not work_on_holiday)
             or "【祝】" in note
         )
@@ -529,11 +540,15 @@ def render_report(
             + esc(note or label)
             + "</div></td></tr>"
         )
-        if show_half_subtotals and d == 15:
+        if show_half_subtotals and subtotal_layout != "bottom" and d == 15:
             b += subtotal("前半小計（前半15日）", 0).replace(
                 'class="summary', 'class="screen-subtotal summary', 1
             )
     if show_half_subtotals:
+        if subtotal_layout == "bottom":
+            b += subtotal("前半小計（前半15日）", 0).replace(
+                'class="summary', 'class="screen-subtotal summary', 1
+            )
         b += subtotal("後半小計（16日～最終日）", 1).replace(
             'class="summary', 'class="screen-subtotal summary', 1
         )

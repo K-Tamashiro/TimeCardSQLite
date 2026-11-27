@@ -672,6 +672,15 @@ def handle_settings(sess, p, method, q):
             '<label class="workday-pill">'
             '<input type="checkbox" name="contract_show_half_subtotals" id="contract-show-half-subtotals" value="1">'
             "<span>15日・末の途中集計（前半・後半小計行）を表示する（画面・印刷）</span></label>"
+            "</div>"
+            '<div class="subtotal-layout-options is-disabled" id="subtotal-layout-options">'
+            '<span class="small muted">画面の小計行レイアウト：</span>'
+            '<label class="workday-pill">'
+            '<input type="radio" name="contract_subtotal_layout" value="split" checked disabled>'
+            "<span>15日の下に挟む（標準）</span></label>"
+            '<label class="workday-pill">'
+            '<input type="radio" name="contract_subtotal_layout" value="bottom" disabled>'
+            "<span>下部に3行セット（前半・後半・合計）</span></label>"
             "</div></div>"
             '<div class="form-actions">'
             '<button type="submit" id="contract-submit-btn" class="btn-with-icon">'
@@ -741,7 +750,15 @@ def handle_settings(sess, p, method, q):
                     + esc(tax_disp)
                     + '<div class="small muted">支払 '
                     + esc(_format_payment_terms(c))
-                    + (" / 15日小計" if c.get("show_half_subtotals") else "")
+                    + (
+                        (
+                            " / 15日小計(下部)"
+                            if c.get("subtotal_layout") == "bottom"
+                            else " / 15日小計"
+                        )
+                        if c.get("show_half_subtotals")
+                        else ""
+                    )
                     + "</div></td><td>"
                     + esc(_format_workdays(c))
                     + '<div class="small muted">'
@@ -883,6 +900,7 @@ def handle_settings(sess, p, method, q):
         '<span><i class="legend-swatch is-off-weekday"></i>所定休日</span>'
         '<span><i class="legend-swatch is-national-holiday"></i>国民の祝日</span>'
         '<span><i class="legend-swatch is-office-holiday"></i>事業所指定休日</span>'
+        '<span><i class="legend-swatch is-absence-holiday"></i>欠勤・休み</span>'
         '<span><i class="legend-swatch is-event"></i>個人予定</span>'
         '<span><i class="legend-swatch is-public-event"></i>全体予定</span>'
         '<span><i class="legend-swatch is-selected"></i>選択中</span>'
@@ -932,6 +950,10 @@ def handle_settings(sess, p, method, q):
             '<button type="button" class="preset-chip" data-holiday-preset="年末年始">年末年始</button>'
             '<button type="button" class="preset-chip" data-holiday-preset="フリー">フリー</button>'
             '<button type="button" class="preset-chip" data-holiday-preset="創立記念日">創立記念日</button>'
+            '<button type="button" class="preset-chip is-absence-chip" data-holiday-preset="【欠勤】">【欠勤】</button>'
+            '<button type="button" class="preset-chip is-absence-chip" data-holiday-preset="【休み】">【休み】</button>'
+            '<button type="button" class="preset-chip is-absence-chip" data-holiday-preset="【病欠】">【病欠】</button>'
+            '<button type="button" class="preset-chip is-absence-chip" data-holiday-preset="【私用】">【私用】</button>'
             "</div>"
             '<label class="field"><span>日付</span>'
             '<input type="date" id="holiday-day-input" name="holiday_day" required></label>'

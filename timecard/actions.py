@@ -28,6 +28,7 @@ from timecard.contracts import (
     DEFAULT_REGULAR_END,
     DEFAULT_REGULAR_START,
     DEFAULT_ROUND_UNIT,
+    DEFAULT_SUBTOTAL_LAYOUT,
     DEFAULT_WORKDAYS,
     active_contract,
     contract_is_workday,
@@ -36,6 +37,7 @@ from timecard.contracts import (
     delete_contract_storage,
     get_contract_holidays,
     hhmm_to_minutes,
+    is_absence_label,
     new_contract_id,
     normalize_hhmm,
     reporting_period,
@@ -162,6 +164,8 @@ def handle_bulk_regular(sess, p):
         if not contract_is_workday(bulk_c, current, official_days, office_holidays):
             continue
         ds = current.isoformat()
+        if is_absence_label(office_holidays.get(ds, "")):
+            continue
         existing = getwork(uid, ds)
         if any(
             existing[k]
@@ -464,6 +468,18 @@ def handle_contract_save(sess, p):
         else:
             show_half_subtotals = False
 
+        raw_subtotal_layout = p.get("contract_subtotal_layout", "").strip()
+        if raw_subtotal_layout:
+            if raw_subtotal_layout not in ("split", "bottom"):
+                raise ValueError("小計行の表示レイアウト設定が不正です。")
+            subtotal_layout = raw_subtotal_layout
+        elif existing_record:
+            subtotal_layout = str(
+                existing_record.get("subtotal_layout", DEFAULT_SUBTOTAL_LAYOUT)
+            )
+        else:
+            subtotal_layout = DEFAULT_SUBTOTAL_LAYOUT
+
         cid = existing_record["id"] if existing_record else new_contract_id()
         record = dict(
             id=cid,
@@ -497,6 +513,7 @@ def handle_contract_save(sess, p):
             pay_day=pay_day,
             pay_holiday_rule=pay_holiday_rule,
             show_half_subtotals=show_half_subtotals,
+            subtotal_layout=subtotal_layout,
             is_sample=False,
         )
         if target_index is not None:

@@ -23,6 +23,12 @@
     }
 
     const WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
+    const ABSENCE_KEYWORDS = ['【欠勤】', '【休み】', '【病欠】', '【私用】'];
+
+    function isAbsenceLabel(label) {
+        const text = String(label || '');
+        return ABSENCE_KEYWORDS.some(function (kw) { return text.indexOf(kw) !== -1; });
+    }
 
     // =========================================================
     // 1. Invoice Sequence Live Preview (Sysadmin)
@@ -142,6 +148,25 @@
         updateBreakDuration(2);
     }
 
+    function setSubtotalLayoutValue(layoutVal) {
+        if (!contractForm) return;
+        const val = layoutVal === 'bottom' ? 'bottom' : 'split';
+        contractForm.querySelectorAll('input[name="contract_subtotal_layout"]').forEach(function (radio) {
+            radio.checked = radio.value === val;
+        });
+    }
+
+    function syncSubtotalLayoutState() {
+        if (!contractForm) return;
+        const hsubCb = contractForm.elements.contract_show_half_subtotals;
+        const enabled = Boolean(hsubCb && hsubCb.checked);
+        const box = document.getElementById('subtotal-layout-options');
+        if (box) box.classList.toggle('is-disabled', !enabled);
+        contractForm.querySelectorAll('input[name="contract_subtotal_layout"]').forEach(function (radio) {
+            radio.disabled = !enabled;
+        });
+    }
+
     function resetContractForm() {
         if (!contractForm) return;
         contractForm.reset();
@@ -166,6 +191,8 @@
         if (holCb) holCb.checked = false;
         const hsubCb = contractForm.elements.contract_show_half_subtotals;
         if (hsubCb) hsubCb.checked = false;
+        setSubtotalLayoutValue('split');
+        syncSubtotalLayoutState();
         manualDeduct = false;
         manualExtra = false;
         if (contractModeBadge) {
@@ -222,6 +249,8 @@
         if (holCb) holCb.checked = Boolean(c.work_on_holiday);
         const hsubCb = contractForm.elements.contract_show_half_subtotals;
         if (hsubCb) hsubCb.checked = Boolean(c.show_half_subtotals);
+        setSubtotalLayoutValue(c.subtotal_layout || 'split');
+        syncSubtotalLayoutState();
         manualDeduct = true;
         manualExtra = true;
         if (contractModeBadge) {
@@ -259,6 +288,11 @@
             });
         });
         updateAllBreakDurations();
+        syncSubtotalLayoutState();
+        const hsubCbInit = contractForm.elements.contract_show_half_subtotals;
+        if (hsubCbInit) {
+            hsubCbInit.addEventListener('change', syncSubtotalLayoutState);
+        }
         ['contract_fee', 'contract_lower', 'contract_upper'].forEach(function (name) {
             const el = contractForm.elements[name];
             if (el) {
@@ -419,7 +453,7 @@
         const privEv = (calData.private_events || {})[selectedDate] || '';
         const parts = [selectedDate + '（' + w + '）'];
         if (officialName) parts.push('祝日：' + officialName);
-        if (officeName) parts.push('事業所休日：' + officeName);
+        if (officeName) parts.push((isAbsenceLabel(officeName) ? '欠勤扱い：' : '事業所休日：') + officeName);
         if (pubEv) parts.push('全体予定：' + pubEv);
         if (privEv) parts.push('個人予定：' + privEv);
         if (holidaySelectedMeta) holidaySelectedMeta.textContent = parts.join(' ／ ');
@@ -499,7 +533,7 @@
                 selectBtn.type = 'button';
                 selectBtn.className = 'holiday-item-select';
                 const dateSpan = document.createElement('span');
-                dateSpan.className = 'holiday-item-date';
+                dateSpan.className = 'holiday-item-date' + (isAbsenceLabel(office[iso]) ? ' is-absence' : '');
                 dateSpan.textContent = iso + '（' + WEEKDAYS_JA[d.getDay()] + '）';
                 const lblSpan = document.createElement('span');
                 lblSpan.className = 'holiday-item-label';
@@ -649,6 +683,7 @@
 
         let totalWorkdays = 0;
         let totalOfficeHolidays = 0;
+        let totalAbsenceDays = 0;
         let totalEvents = 0;
         calContainer.replaceChildren();
 
@@ -701,18 +736,30 @@
                 btn.dataset.date = iso;
                 btn.textContent = String(dayNum);
 
-                const isOffice = Boolean(office[iso]);
+                const officeLabel = office[iso] || '';
+                const isOfficeAbsence = isAbsenceLabel(officeLabel);
+                const isOfficeHoliday = Boolean(officeLabel) && !isOfficeAbsence;
                 const isOfficial = Boolean(official[iso]);
                 const isRegularWorkday = workdays.has(pyWeekday(d));
+                const isNationalOff = isOfficial && !workOnHoliday;
+                const isWorkday = !isOfficeHoliday && !isNationalOff && isRegularWorkday;
                 const pubEv = pubEvents[iso] || '';
                 const privEv = privEvents[iso] || '';
                 const tips = [iso + '（' + WEEKDAYS_JA[d.getDay()] + '）'];
 
-                if (isOffice) {
+                if (isWorkday) {
+                    monthWorkdays += 1;
+                    totalWorkdays += 1;
+                }
+                if (isOfficeAbsence) {
+                    btn.classList.add('is-absence-holiday');
+                    totalAbsenceDays += 1;
+                    tips.push('欠勤扱い：' + officeLabel);
+                } else if (isOfficeHoliday) {
                     btn.classList.add('is-office-holiday');
                     totalOfficeHolidays += 1;
-                    tips.push('事業所指定休日：' + office[iso]);
-                } else if (isOfficial && !workOnHoliday) {
+                    tips.push('事業所指定休日：' + officeLabel);
+                } else if (isNationalOff) {
                     btn.classList.add('is-national-holiday');
                     tips.push('国民の祝日：' + official[iso]);
                 } else if (!isRegularWorkday) {
@@ -720,8 +767,6 @@
                     tips.push('所定休日');
                 } else {
                     btn.classList.add('is-workday');
-                    monthWorkdays += 1;
-                    totalWorkdays += 1;
                     if (isOfficial) tips.push('祝日稼働：' + official[iso]);
                 }
                 if (pubEv) {
@@ -748,7 +793,7 @@
         });
 
         if (calStats) {
-            calStats.textContent = '年度稼働日：' + totalWorkdays + '日 ／ 事業所指定休日：' + totalOfficeHolidays + '日 ／ 予定：' + totalEvents + '件';
+            calStats.textContent = '年度稼働日：' + totalWorkdays + '日 ／ 事業所指定休日：' + totalOfficeHolidays + '日' + (totalAbsenceDays > 0 ? ' ／ 欠勤扱い：' + totalAbsenceDays + '日' : '') + ' ／ 予定：' + totalEvents + '件';
         }
         renderHolidayList();
         renderEventList();

@@ -19,6 +19,15 @@ DEFAULT_BREAK2_END = "17:40"
 DEFAULT_PAY_MONTH_OFFSET = 2
 DEFAULT_PAY_DAY = "15"
 DEFAULT_PAY_HOLIDAY_RULE = "next"
+DEFAULT_SUBTOTAL_LAYOUT = "split"
+ABSENCE_KEYWORDS = ("【欠勤】", "【休み】", "【病欠】", "【私用】")
+
+
+def is_absence_label(text):
+    """Return True when a note or holiday label represents an absence day."""
+    s = str(text or "")
+    return any(kw in s for kw in ABSENCE_KEYWORDS)
+
 
 CONTRACT_FIELD_MAP = (
     ("name", "name"),
@@ -48,6 +57,7 @@ CONTRACT_FIELD_MAP = (
     ("pay_day", "pday"),
     ("pay_holiday_rule", "phol"),
     ("show_half_subtotals", "hsub"),
+    ("subtotal_layout", "hlay"),
     ("is_sample", "sample"),
 )
 
@@ -238,6 +248,11 @@ def normalize_contract(raw, storage_key=None):
         else bool(raw_hsub)
     )
 
+    raw_hlay = str(c.get("subtotal_layout") or DEFAULT_SUBTOTAL_LAYOUT).strip()
+    subtotal_layout = (
+        raw_hlay if raw_hlay in ("split", "bottom") else DEFAULT_SUBTOTAL_LAYOUT
+    )
+
     raw_sample = c.get("is_sample", False)
     is_sample = (
         raw_sample.strip() in ("1", "true", "True")
@@ -277,6 +292,7 @@ def normalize_contract(raw, storage_key=None):
         "pay_day": pay_day,
         "pay_holiday_rule": pay_holiday_rule,
         "show_half_subtotals": show_half_subtotals,
+        "subtotal_layout": subtotal_layout,
         "is_sample": is_sample,
     }
 
@@ -566,7 +582,12 @@ def delete_contract_storage(contract):
 
 
 def contract_is_workday(contract, day_obj, official_holidays, office_holidays):
-    if day_obj.isoformat() in office_holidays:
+    iso = day_obj.isoformat()
+    if isinstance(office_holidays, dict):
+        office_label = office_holidays.get(iso, "")
+        if office_label and not is_absence_label(office_label):
+            return False
+    elif iso in office_holidays:
         return False
     workdays = contract["workdays"] if contract else DEFAULT_WORKDAYS
     work_on_holiday = contract["work_on_holiday"] if contract else False

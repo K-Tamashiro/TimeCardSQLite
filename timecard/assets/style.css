@@ -86,6 +86,7 @@ a{color:#70d8f0!important}header a{color:#fff!important}
 .entry-fields input[type=number] {-moz-appearance:textfield;appearance:textfield}
 .entry-fields input[type=number]::-webkit-outer-spin-button,.entry-fields input[type=number]::-webkit-inner-spin-button {-webkit-appearance:none;margin:0}
 .entry-fields input:not([type=checkbox])::placeholder {font-size:16px;font-weight:400;letter-spacing:0}
+.entry-fields #entry-break::placeholder {font-size:26px}
 .entry-fields .time-with-clear {margin-top:5px;gap:6px}
 .entry-fields .time-with-clear input {margin-top:0}
 .entry-regular-slot {margin-left:auto;display:inline-flex;align-items:center;min-width:0;flex-shrink:1}
@@ -206,6 +207,7 @@ button.day-clear.icon-btn img {width:24px;height:24px}
   .early-check input[type=checkbox] {width:12px!important;height:12px!important}
   .entry-fields input:not([type=checkbox]) {font-size:clamp(17px,5.2vw,22px);height:40px;padding:4px 6px;letter-spacing:.01em}
   .entry-fields input:not([type=checkbox])::placeholder {font-size:clamp(12px,3.4vw,15px);font-weight:400;letter-spacing:0}
+  .entry-fields #entry-break::placeholder {font-size:clamp(17px,5.2vw,22px)}
   .entry-fields .time-with-clear {gap:3px}
   button.clear-time.icon-btn img {width:clamp(26px,7.8vw,36px);height:clamp(26px,7.8vw,36px)}
   .print-sheet>.scroll>table {width:840px;min-width:840px;table-layout:fixed}
@@ -313,6 +315,7 @@ button.day-clear.icon-btn img {width:24px;height:24px}
 .legend-swatch.is-off-weekday {background:#4a2531;border-color:#783c4e}
 .legend-swatch.is-national-holiday {background:#6e2438;border-color:#a8445c}
 .legend-swatch.is-office-holiday {background:#9e243b;border-color:#ff7a92}
+.legend-swatch.is-absence-holiday {background:#5a636e;border-color:#9aa6b2}
 .legend-swatch.is-event {background:rgba(245,158,11,.28);border-color:#f59e0b}
 .legend-swatch.is-public-event {background:rgba(56,189,248,.28);border-color:#38bdf8}
 .legend-swatch.is-selected {background:#182631;border:2px solid #70d8f0}
@@ -335,6 +338,7 @@ button.cal-day.is-workday {background:#1b2c38!important;color:#edf5f9!important;
 button.cal-day.is-off-weekday {background:#4c2633!important;color:#f7c8d2!important;border-color:#693547!important}
 button.cal-day.is-national-holiday {background:#73243b!important;color:#ffe6ec!important;border-color:#ab4460!important;font-weight:700}
 button.cal-day.is-office-holiday {background:#a8243f!important;color:#ffffff!important;border-color:#ff8098!important;font-weight:700}
+button.cal-day.is-absence-holiday {background:#5a636e!important;color:#ffffff!important;border-color:#9aa6b2!important;font-weight:700}
 button.cal-day.is-workday.has-event {background:#42311a!important;color:#fff2d6!important;border-color:#d98218!important;font-weight:700}
 button.cal-day.is-workday.has-public-event {background:#16394d!important;color:#e0f7ff!important;border-color:#38bdf8!important;font-weight:700}
 button.cal-day.has-event::after {content:"";position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#ffad33;box-shadow:0 0 0 1px #241809}
@@ -351,6 +355,9 @@ button.cal-day.is-selected {outline:2px solid #70d8f0!important;outline-offset:1
 .preset-chip {padding:4px 9px;font-size:12px;border-radius:999px;background:#223847!important;color:#dceaf2!important;border:1px solid #456275!important}
 .preset-chip:hover {background:#2d4a5e!important}
 .preset-chip.is-active {background:#a8243f!important;color:#ffffff!important;border-color:#ff8098!important;font-weight:700}
+.preset-chip.is-absence-chip {background:#384048!important;border-color:#74808c!important;color:#eef2f6!important}
+.preset-chip.is-absence-chip:hover {background:#48525c!important}
+.preset-chip.is-absence-chip.is-active {background:#67727e!important;border-color:#cbd5e1!important;color:#ffffff!important;font-weight:700}
 .holiday-editor-actions {display:flex;align-items:center;gap:8px}
 .holiday-editor-actions button[type=submit] {flex:1}
 .holiday-status {margin:0;min-height:18px}
@@ -363,6 +370,7 @@ button.cal-day.is-selected {outline:2px solid #70d8f0!important;outline-offset:1
 .holiday-list li.holiday-list-empty {border:0;background:transparent;padding:8px 2px}
 .holiday-item-select {flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:3px 4px!important;background:transparent!important;border:0!important;color:inherit!important;text-align:left}
 .holiday-item-date {font-size:12px;font-variant-numeric:tabular-nums;color:#ff9aa6;font-weight:700}
+.holiday-item-date.is-absence {color:#c5cbd3}
 .holiday-item-label {font-size:13px;color:#f1f5f9;overflow-wrap:anywhere}
 .holiday-item-del {flex:none;width:26px;height:26px;padding:0!important;border-radius:6px;background:transparent!important;color:#d69ba4!important;border:1px solid #593941!important;font-size:15px;line-height:1}
 .holiday-item-del:hover {background:#7c2938!important;color:#fff!important}
@@ -391,6 +399,7 @@ button.cal-day.is-selected {outline:2px solid #70d8f0!important;outline-offset:1
 .entry-closing-box {display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:9px;background:rgba(239,68,68,.18);border:2px solid #ef4444;color:#ffd2d2;font-size:13.5px;font-weight:700;line-height:1.3;white-space:nowrap;flex-shrink:0}
 .entry-closing-box[hidden] {display:none!important}
 .entry-closing-badge {display:inline-flex;align-items:center;letter-spacing:.08em}
+#entry-dialog .selected-day.is-closing {border:3px solid #ef4444;box-shadow:0 0 0 1px rgba(239,68,68,.45),0 18px 48px rgba(0,0,0,.65)!important}
 .early-tag {display:inline-block;margin-top:2px;padding:1px 5px;border-radius:4px;background:rgba(245,158,11,.2);border:1px solid #d98218;color:#ffd480;font-size:11px;font-weight:700;line-height:1.25;white-space:nowrap}
 .monthly-total .early-tag {background:rgba(255,224,102,.22);border-color:#ffd460;color:#fff2b8}
 @media screen {
@@ -420,4 +429,21 @@ button.cal-day.is-selected {outline:2px solid #70d8f0!important;outline-offset:1
   .closing-dot,.day-badges,#entry-closing-box,#entry-status-boxes {display:none!important}
   tr.day-row.has-event td {background:inherit!important;box-shadow:none!important}
   .early-tag {background:transparent!important;border:0!important;padding:0!important;color:#333!important;font-size:6pt!important;font-weight:600!important}
+}
+.subtotal-layout-options {display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #2b4050}
+.subtotal-layout-options.is-disabled {opacity:.45}
+.subtotal-layout-options.is-disabled .workday-pill {cursor:default}
+
+/* Date link styling: remove underline and match weekday/weekend/holiday colors. */
+.print-sheet .day-cell a {text-decoration:none}
+@media screen {
+  .print-sheet>.scroll>table tbody tr.day-row .day-cell a {color:#f1f5f9!important}
+  .print-sheet>.scroll>table tbody tr.day-row.saturday .day-cell a {color:#a6d7ff!important}
+  .print-sheet>.scroll>table tbody tr.day-row.sunday .day-cell a,.print-sheet>.scroll>table tbody tr.day-row.holiday .day-cell a {color:#ffb7c0!important}
+  .print-sheet>.scroll>table tbody tr.day-row.absence .day-cell a {color:#eef2f6!important}
+}
+@media print {
+  .print-sheet .day-cell a {text-decoration:none!important;color:inherit!important}
+  .print-sheet tr.day-row.saturday .day-cell a {color:#1759ad!important}
+  .print-sheet tr.day-row.sunday .day-cell a,.print-sheet tr.day-row.holiday .day-cell a {color:#b4232e!important}
 }

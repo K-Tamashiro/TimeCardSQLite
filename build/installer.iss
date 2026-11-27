@@ -2,7 +2,7 @@
 ; Requires PyInstaller output in ..\dist\PersonalTimeCard\
 
 #define MyAppName "Personal TimeCard for Free Lance"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "シマウマソフト Tamayan"
 #define MyAppURL "https://note.com/thinker_tamayan"
 #define MyAppSupportURL "https://github.com/K-Tamashiro/TimeCardSQLite"
